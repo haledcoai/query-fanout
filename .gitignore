@@ -1,0 +1,8 @@
+# Không bao giờ đưa key hay secret lên GitHub
+knowledge/claude/serpapi-api-key.txt
+knowledge/claude/gemini-api-key.txt
+*-api-key.txt
+!*.example.txt
+.serpapi-key
+.env
+*.key

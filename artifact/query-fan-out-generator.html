@@ -1,0 +1,934 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Query Fan-Out Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: một cột công cụ. Form nhập + nguồn Otterly, thanh lọc (Nhóm, Ý định, Nguồn), bảng gom theo nhóm (thẻ trên điện thoại) */
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --ink: #16202e;
+  --muted: #5d6878;
+  --line: #dde2ea;
+  --accent: #c27a00;
+  --accent-ink: #1b1300;
+  --accent-soft: #fff3dc;
+  --ok: #1d8a52; --real: #1d8a52; --real-soft: #e3f5ec;
+  --ot: #2f6fdb; --ot-soft: #e6eefc;
+  --gg: #b0428a; --gg-soft: #fbe8f3; --inf: #8a6d00; --inf-soft: #fbf3d6;
+  --focus: #2f6fdb;
+  --err-bg: #fdecec; --err-fg: #a12626;
+  --i-info: #2f6fdb; --i-tm: #b45f06; --i-dh: #6b4fc9; --i-gd: #1d8a52;
+  --f-ui: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10151d; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b5; --line: #2a3442;
+  --accent: #f0a828; --accent-ink: #1b1300; --accent-soft: #2e2510; --focus: #7aa7ff; --ok: #5fd39a; --real: #5fd39a; --real-soft: #13301f;
+  --ot: #8fb4ff; --ot-soft: #17243d;
+  --gg: #f19ad0; --gg-soft: #3a1830; --inf: #e6c75a; --inf-soft: #2f2810;
+  --err-bg: #3a1a1c; --err-fg: #ffb3b3;
+  --i-info: #7aa7ff; --i-tm: #f0a828; --i-dh: #b9a3ff; --i-gd: #5fd39a;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #10151d; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b5; --line: #2a3442;
+  --accent: #f0a828; --accent-ink: #1b1300; --accent-soft: #2e2510; --focus: #7aa7ff; --ok: #5fd39a; --real: #5fd39a; --real-soft: #13301f;
+  --ot: #8fb4ff; --ot-soft: #17243d;
+  --gg: #f19ad0; --gg-soft: #3a1830; --inf: #e6c75a; --inf-soft: #2f2810;
+  --err-bg: #3a1a1c; --err-fg: #ffb3b3;
+  --i-info: #7aa7ff; --i-tm: #f0a828; --i-dh: #b9a3ff; --i-gd: #5fd39a;
+  color-scheme: dark; }
+
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 15px; line-height: 1.5; padding-inline: 16px; }
+.wrap { max-width: 1000px; margin: 0 auto; padding-block: 28px 48px; display: grid; gap: 18px; }
+h1 { margin: 0; font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; display: flex; align-items: center; gap: 10px; }
+h1 .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft), 0 0 18px var(--accent); flex: none; }
+.lead { margin: 4px 0 0; color: var(--muted); max-width: 66ch; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 14px; }
+.lbl { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 6px; }
+textarea, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; box-sizing: border-box; }
+textarea { min-height: 60px; resize: vertical; }
+textarea:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, .seg input:focus-visible + span, .filebtn input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+.row > div { min-width: 0; }
+.row select { width: auto; min-width: 140px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; padding: 9px 15px; font-family: var(--f-num); font-size: 14px; border-left: 1px solid var(--line); cursor: pointer; }
+.seg label:first-child span { border-left: 0; }
+.seg input:checked + span { background: var(--accent); color: var(--accent-ink); }
+button, .btn { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 9px 14px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; padding: 10px 22px; }
+.actions { margin-left: auto; display: flex; gap: 8px; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+.badge { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; white-space: nowrap; background: var(--accent-soft); color: var(--accent); }
+.b-real { background: var(--real-soft); color: var(--real); }
+.b-ot { background: var(--ot-soft); color: var(--ot); }
+.b-gg { background: var(--gg-soft); color: var(--gg); }
+.b-inf { background: var(--inf-soft); color: var(--inf); }
+.b-pred { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+
+/* Khối nguồn Otterly */
+.src { border: 1px dashed var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 12px; }
+.src-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; }
+.src-head h2 { margin: 0; font-size: 14px; font-weight: 700; }
+.steps { margin: 0; padding-left: 20px; font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
+.steps b { color: var(--ink); font-weight: 600; }
+.src-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filebtn { position: relative; display: inline-flex; }
+.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.filebtn span { border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 9px 14px; font-weight: 500; }
+#otpaste { min-height: 44px; font-size: 13px; }
+.src-state { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
+.src-state .cnt { font-family: var(--f-num); }
+.src-msg { font-size: 13px; margin: 0; }
+.src-msg.bad { color: var(--err-fg); }
+.src-msg.good { color: var(--ok); }
+.src-drop { font-size: 13px; color: var(--muted); }
+.src-drop summary { cursor: pointer; }
+.src-drop ul { margin: 6px 0 0; padding-left: 20px; max-height: 180px; overflow-y: auto; }
+.src-drop li span { color: var(--err-fg); }
+.src-msg.warn { color: var(--i-tm); }
+.src.drag { border-color: var(--ot); background: var(--ot-soft); }
+
+.status { border-radius: var(--r); padding: 14px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.status.loading { background: var(--accent-soft); }
+.status.error { background: var(--err-bg); color: var(--err-fg); }
+.status p { margin: 0; flex: 1 1 260px; min-width: 0; }
+.spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--accent); border-right-color: transparent; animation: sp .8s linear infinite; flex: none; }
+@keyframes sp { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+
+.result { display: grid; gap: 12px; }
+.sum { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+.sum h2 { margin: 0; font-size: 1.15rem; text-wrap: balance; min-width: 0; }
+.sum .meta { color: var(--muted); font-size: 13px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.toolbar > div { min-width: 0; }
+.toolbar select { width: auto; min-width: 150px; padding: 8px 10px; }
+.toolbar .tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.toast { font-size: 13px; color: var(--ok); min-height: 1.2em; }
+
+.groups { display: grid; gap: 14px; }
+.group { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.group h3 { margin: 0; padding: 12px 16px; font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.group h3 .n { font-family: var(--f-num); font-size: 12px; color: var(--muted); font-weight: 500; }
+.group h3 .def { font-size: 12px; color: var(--muted); font-weight: 400; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 8px 16px; }
+th:nth-child(2) { width: 120px; } th:nth-child(3) { width: 150px; } th:nth-child(4) { width: 170px; }
+td { padding: 10px 16px; border-top: 1px solid var(--line); vertical-align: top; }
+td.q { font-weight: 500; overflow-wrap: anywhere; }
+td.i, td.c, td.s { font-size: 13px; }
+td.s .sw { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 6px; }
+.pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.pill[data-i="Thông tin"] { color: var(--i-info); }
+.pill[data-i="Thương mại"] { color: var(--i-tm); }
+.pill[data-i="Điều hướng"] { color: var(--i-dh); }
+.pill[data-i="Giao dịch"] { color: var(--i-gd); }
+.freq { font-family: var(--f-num); font-size: 12px; color: var(--muted); }
+.ctype { color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; white-space: nowrap; }
+.insight { gap: 8px; font-size: 14px; }
+.insight h3 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.insight p, .insight ul { margin: 0; }
+.insight ul { padding-left: 20px; }
+.insight a { color: var(--ot); overflow-wrap: anywhere; }
+.otadd { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.otadd input { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; flex: 1 1 260px; min-width: 0; }
+.empty { color: var(--muted); padding: 20px; text-align: center; background: var(--surface); border: 1px dashed var(--line); border-radius: var(--r); }
+
+.hist { display: grid; gap: 12px; }
+.hist-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.hist-head h2 { margin: 0; font-size: 15px; font-weight: 700; }
+.hist-head .tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.hlist { display: grid; max-height: 340px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+.hrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 12px; border-top: 1px solid var(--line); }
+.hrow:first-child { border-top: 0; }
+.hrow.cur { background: var(--accent-soft); }
+.hrow input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; flex: none; }
+.hrow .hr { font-weight: 500; flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.hrow .hm { font-size: 12px; color: var(--muted); font-family: var(--f-num); }
+.hrow button { padding: 5px 10px; font-size: 13px; }
+.hrow .del.arm { border-color: var(--err-fg); color: var(--err-fg); }
+.cmp { display: grid; gap: 14px; }
+.cmp .scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.cmp table { table-layout: auto; min-width: 520px; }
+.cmp th, .cmp td { white-space: nowrap; }
+.cmp td.q { white-space: normal; min-width: 240px; }
+.cmp td.num { font-family: var(--f-num); text-align: center; }
+.cmp td.yes { color: var(--ok); text-align: center; font-weight: 700; }
+.cmp h3 { margin: 0; font-size: 14px; }
+@media (max-width: 640px) { .cmp table, .cmp tbody, .cmp tr, .cmp td { display: revert; } .cmp thead { display: table-header-group; } .cmp tr { display: table-row; } .cmp td { display: table-cell; padding: 8px 12px; border-top: 1px solid var(--line); } }
+
+@media (max-width: 640px) {
+  .actions { margin-left: 0; width: 100%; }
+  .actions .primary { flex: 1; justify-content: center; }
+  .toolbar .tools { margin-left: 0; }
+  .groups thead { display: none; }
+  .groups table, .groups tbody, .groups tr, .groups td { display: block; }
+  .groups tr { padding: 12px 16px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 6px 12px; }
+  .groups tbody tr:first-child { border-top: 0; }
+  .groups td { padding: 0; border: 0; }
+  .groups td.q { flex: 1 0 100%; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1><span class="dot" aria-hidden="true"></span>Query Fan-Out Generator</h1>
+    <p class="lead">Nhập một truy vấn gốc. Công cụ gộp truy vấn con từ Otterly với truy vấn dự đoán của Google AI Mode, AI Overviews, ChatGPT, Gemini và Claude thành một danh sách không trùng lặp.</p>
+  </header>
+
+  <form class="panel" id="f" novalidate>
+    <div>
+      <label class="lbl" for="q">Truy vấn gốc</label>
+      <textarea id="q" placeholder="Ví dụ: đèn pha LED cho sân bóng đá mini" required></textarea>
+    </div>
+
+    <section class="src" aria-labelledby="src-t">
+      <div class="src-head">
+        <h2 id="src-t">Truy vấn từ Otterly</h2>
+        <span class="note">Tùy chọn. Có thì kết quả đầy đủ hơn.</span>
+      </div>
+      <ol class="steps">
+        <li>Bấm <b>Copy truy vấn gốc</b>, rồi <b>Mở Otterly</b> và dán đúng truy vấn đó, bấm Start Fan-Out Analysis.</li>
+        <li>Mở link trong email Otterly gửi về, bấm <b>Export all prompts</b> để tải file CSV.</li>
+        <li>Chọn file CSV đó ở đây. Hoặc copy bảng kết quả trên trang Otterly rồi dán vào ô bên dưới.</li>
+      </ol>
+      <div class="src-tools">
+        <button type="button" id="copyroot">Copy truy vấn gốc</button>
+        <a class="btn" id="otlink" href="https://geo.otterly.ai/geo/ai-query-fan-out/" target="_blank" rel="noopener">Mở Otterly ↗</a>
+        <label class="filebtn"><input type="file" id="otfile" accept=".csv,text/csv,text/plain"><span>Chọn file CSV</span></label>
+      </div>
+      <div>
+        <label class="lbl" for="otpaste">Hoặc dán kết quả Otterly</label>
+        <textarea id="otpaste" placeholder="Dán bảng kết quả copy từ trang Otterly, nội dung file CSV, hoặc danh sách truy vấn mỗi dòng một truy vấn"></textarea>
+      </div>
+      <div class="src-tools">
+        <button type="button" id="otload">Nạp truy vấn đã dán</button>
+        <span class="note">Có thể kéo thả file CSV vào khung này.</span>
+      </div>
+      <div class="src-state" id="otstate" aria-live="polite"></div>
+    </section>
+
+    <div class="row">
+      <div>
+        <span class="lbl" id="cnt-l">Số truy vấn dự đoán tối đa</span>
+        <div class="seg" role="radiogroup" aria-labelledby="cnt-l">
+          <label><input type="radio" name="cnt" id="c20" value="20" checked><span>20</span></label>
+          <label><input type="radio" name="cnt" id="c30" value="30"><span>30</span></label>
+          <label><input type="radio" name="cnt" id="c40" value="40"><span>40</span></label>
+          <label><input type="radio" name="cnt" id="c50" value="50"><span>50</span></label>
+        </div>
+      </div>
+      <div>
+        <label class="lbl" for="lang">Ngôn ngữ đầu ra</label>
+        <select id="lang">
+          <option value="vi" selected>Tiếng Việt</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button type="button" id="reset" title="Xóa truy vấn gốc, truy vấn Otterly và kết quả đang xem để nhập truy vấn mới">Làm mới</button>
+        <button type="button" id="stop" hidden>Dừng</button>
+        <button type="submit" class="primary" id="go">Phân tích</button>
+      </div>
+    </div>
+    <p class="note">Truy vấn Otterly giữ nguyên văn, do AI của Otterly mô phỏng. Truy vấn dự đoán do Claude tạo. Cả hai đều không phải dữ liệu thật của Google. Nút Phân tích chạy đầy đủ như /query-fan-out: truy vấn Thật của Claude, dữ liệu Google qua SerpApi (Autocomplete, Related, PAA, Suy ngược từ AI Mode và AI Overview), Otterly đã nạp và truy vấn dự đoán. Mất vài phút, kết quả tự mở và lưu vào Lịch sử. Khi không chạy đầy đủ được, trang chuyển sang phân tích nhanh (chỉ Otterly và dự đoán) và báo rõ.</p>
+  </form>
+
+  <div id="status" class="status" hidden role="status" aria-live="polite"></div>
+
+  <section class="panel hist" id="hist">
+    <div class="hist-head">
+      <h2 id="h-title">Lịch sử phân tích</h2>
+      <div class="tools">
+        <button type="button" id="cmpbtn" disabled>So sánh</button>
+      </div>
+    </div>
+    <p class="note" id="h-note">Đang tải lịch sử...</p>
+    <div class="hlist" id="hlist" hidden></div>
+  </section>
+
+  <section class="cmp" id="cmp" hidden>
+    <div class="sum">
+      <h2 id="cmp-title">So sánh</h2>
+      <button type="button" id="cmpclose">Đóng so sánh</button>
+    </div>
+    <h3>Số truy vấn theo nhóm</h3>
+    <div class="scroll"><table id="cmp-g"></table></div>
+    <h3>Tất cả truy vấn con</h3>
+    <div class="scroll"><table id="cmp-q"></table></div>
+  </section>
+
+  <section class="result" id="result">
+    <div class="sum">
+      <h2 id="r-title"></h2>
+      <span class="meta" id="r-meta"></span>
+    </div>
+    <div class="toolbar">
+      <div><label class="lbl" for="fg">Nhóm</label><select id="fg"></select></div>
+      <div><label class="lbl" for="fi">Ý định</label><select id="fi"></select></div>
+      <div><label class="lbl" for="fs">Nguồn</label><select id="fs"></select></div>
+      <div class="tools">
+        <button type="button" id="copy">Copy tất cả</button>
+        <button type="button" id="csv">Tải CSV</button>
+      </div>
+    </div>
+    <div class="toast" id="toast" aria-live="polite"></div>
+    <div class="panel insight" id="insight" hidden></div>
+    <div id="groups" class="groups"></div>
+  </section>
+</div>
+
+<script>
+const GROUPS = [
+  { k: "Diễn đạt lại", def: "Cùng ý định, cách gọi khác" },
+  { k: "Liên quan", def: "Chủ đề gần kề, người dùng quan tâm tiếp theo" },
+  { k: "Ngầm định", def: "Câu hỏi chưa nói ra nhưng cần để quyết định" },
+  { k: "Cụ thể hơn", def: "Thông số, tiêu chuẩn, linh kiện, thương hiệu, cách tính" },
+  { k: "So sánh", def: "So với giải pháp, công nghệ, thương hiệu khác" },
+  { k: "Thay thế", def: "Sản phẩm hoặc giải pháp khác cho cùng nhu cầu" },
+  { k: "Theo ngữ cảnh", def: "Theo đối tượng, công trình, vị trí, quy mô" }
+];
+const GKEYS = GROUPS.map(g => g.k);
+const INTENTS = ["Thông tin", "Thương mại", "Điều hướng", "Giao dịch"];
+const CTYPES = ["Bài blog", "Trang sản phẩm", "Trang danh mục", "FAQ", "Bảng so sánh", "Video"];
+const SOURCES = ["Thật", "Google", "Suy ngược", "Otterly", "Dự đoán"];
+const SRC_CLS = { "Thật": "b-real", "Google": "b-gg", "Suy ngược": "b-inf", "Otterly": "b-ot", "Dự đoán": "b-pred" };
+// Kiểu fan-out của Otterly -> nhóm mặc định (Claude vẫn tự xét lại khi phân loại)
+const OT_MAP = [[/reformul/i, "Diễn đạt lại"], [/related/i, "Liên quan"], [/implicit/i, "Ngầm định"], [/compar/i, "So sánh"], [/entity/i, "Theo ngữ cảnh"], [/personal/i, "Theo ngữ cảnh"]];
+
+const EXAMPLE = {
+  root: "đèn công viên năng lượng mặt trời",
+  items: [
+    { query: "Đèn chiếu sáng công viên dùng năng lượng mặt trời", nhom: "Diễn đạt lại", y_dinh: "Thương mại", loai_noi_dung: "Trang danh mục", nguon: "Otterly" },
+    { query: "Đèn đường năng lượng mặt trời cho khu dân cư", nhom: "Diễn đạt lại", y_dinh: "Thương mại", loai_noi_dung: "Trang danh mục", nguon: "Otterly" },
+    { query: "Top 5 thương hiệu đèn năng lượng mặt trời uy tín cho dự án đô thị", nhom: "Liên quan", y_dinh: "Thương mại", loai_noi_dung: "Bảng so sánh", nguon: "Otterly" },
+    { query: "Giải pháp chiếu sáng thông minh tích hợp cảm biến chuyển động cho công viên", nhom: "Liên quan", y_dinh: "Thông tin", loai_noi_dung: "Bài blog", nguon: "Otterly" },
+    { query: "Đèn năng lượng mặt trời có hoạt động được vào mùa đông hoặc ngày mưa không?", nhom: "Ngầm định", y_dinh: "Thông tin", loai_noi_dung: "FAQ", nguon: "Otterly" },
+    { query: "Tuổi thọ trung bình của pin Lithium trong đèn năng lượng mặt trời", nhom: "Ngầm định", y_dinh: "Thông tin", loai_noi_dung: "FAQ", nguon: "Otterly" },
+    { query: "Hướng dẫn lựa chọn công suất đèn năng lượng mặt trời phù hợp cho khuôn viên rộng", nhom: "Cụ thể hơn", y_dinh: "Thông tin", loai_noi_dung: "Bài blog", nguon: "Otterly" },
+    { query: "Yêu cầu về độ rọi tiêu chuẩn cho đường đi bộ trong công viên", nhom: "Cụ thể hơn", y_dinh: "Thông tin", loai_noi_dung: "Bài blog", nguon: "Otterly" },
+    { query: "So sánh đèn công viên năng lượng mặt trời và đèn điện lưới truyền thống", nhom: "So sánh", y_dinh: "Thương mại", loai_noi_dung: "Bảng so sánh", nguon: "Otterly" },
+    { query: "So sánh đèn năng lượng mặt trời liền thể và đèn pin rời", nhom: "So sánh", y_dinh: "Thương mại", loai_noi_dung: "Bảng so sánh", nguon: "Otterly" },
+    { query: "Đèn trang trí công viên dùng pin mặt trời", nhom: "Thay thế", y_dinh: "Thương mại", loai_noi_dung: "Trang danh mục", nguon: "Otterly" },
+    { query: "Lựa chọn đèn năng lượng mặt trời cho khu vực ven biển chống ăn mòn muối", nhom: "Theo ngữ cảnh", y_dinh: "Thương mại", loai_noi_dung: "Trang sản phẩm", nguon: "Otterly" },
+    { query: "Báo giá thi công đèn công viên năng lượng mặt trời cho dự án đầu tư công", nhom: "Theo ngữ cảnh", y_dinh: "Giao dịch", loai_noi_dung: "Trang sản phẩm", nguon: "Otterly" }
+  ]
+};
+
+const $ = id => document.getElementById(id);
+let state = { root: EXAMPLE.root, items: EXAMPLE.items, example: true };
+let sampleFn = null, downloads = null, ctl = null;
+let otterly = []; // [{query, type}]
+
+const norm = s => String(s || "").normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim();
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+// Một dòng có thể ghi nhiều nguồn, ví dụ "Thật, Google Autocomplete". srcKinds trả về mọi loại nguồn có trong dòng.
+function srcKinds(n) {
+  n = String(n || "");
+  const k = [];
+  if (/thật/i.test(n)) k.push("Thật");
+  if (/google\s*(paa|related|autocomplete)/i.test(n)) k.push("Google");
+  if (/suy ngược/i.test(n)) k.push("Suy ngược");
+  if (/otterly/i.test(n)) k.push("Otterly");
+  if (!k.length || /dự đoán/i.test(n)) k.push("Dự đoán");
+  return k;
+}
+function srcKind(n) { return srcKinds(n)[0]; }
+function srcRank(n) { return SOURCES.indexOf(srcKind(n)); }
+
+function opt(sel, values, allLabel) {
+  sel.innerHTML = "";
+  [["", allLabel], ...values.map(v => [v, v])].forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; sel.append(o); });
+}
+opt($("fg"), GKEYS, "Tất cả nhóm");
+opt($("fi"), INTENTS, "Tất cả ý định");
+opt($("fs"), SOURCES, "Tất cả nguồn");
+
+function filtered() {
+  const g = $("fg").value, i = $("fi").value, s = $("fs").value;
+  return state.items.filter(x => (!g || x.nhom === g) && (!i || x.y_dinh === i) && (!s || srcKinds(x.nguon).includes(s)));
+}
+function srcBadge(n) {
+  const k = srcKind(n);
+  const label = n && k !== "Dự đoán" ? n : k;
+  return el("span", "badge " + SRC_CLS[k], label);
+}
+function countBy(items) {
+  const c = Object.fromEntries(SOURCES.map(k => [k, 0]));
+  items.forEach(x => srcKinds(x.nguon).forEach(k => c[k]++));
+  return c;
+}
+
+// Thứ tự giống skill: Thật (tần suất giảm dần), Google, Suy ngược, Otterly, Dự đoán; cùng loại thì dòng nhiều nguồn hơn xếp trước
+const freqOf = x => { const m = String(x.tan_suat || "").match(/^(\d+)\s*\/\s*(\d+)/); return m ? m[1] / m[2] : 0; };
+const nSrc = x => String(x.nguon || "").split(",").filter(t => t.trim()).length;
+function rowOrder(a, b) { return srcRank(a.nguon) - srcRank(b.nguon) || freqOf(b) - freqOf(a) || nSrc(b) - nSrc(a); }
+function renderInsight() {
+  const box = $("insight"); box.innerHTML = "";
+  const parts = [];
+  if (state.ghi_chu) { parts.push(el("h3", null, "Ghi chú lần chạy")); parts.push(el("p", null, state.ghi_chu)); }
+  const nx = state.nhan_xet;
+  if (nx) { parts.push(el("h3", null, "Nhận xét")); parts.push(el("p", null, Array.isArray(nx) ? nx.join(" ") : nx)); }
+  const td = state.trich_dan;
+  if (td && (td.ai_mode?.length || td.ai_overview?.length || td.haledco?.length)) {
+    parts.push(el("h3", null, "Trích dẫn trong câu trả lời AI"));
+    const ul = el("ul");
+    if (td.ai_mode?.length) ul.append(el("li", null, "AI Mode: " + td.ai_mode.join(", ")));
+    if (td.ai_overview?.length) ul.append(el("li", null, "AI Overview: " + td.ai_overview.join(", ")));
+    const li = el("li", null, "Trang haledco.com được trích: ");
+    if (td.haledco?.length) td.haledco.forEach((u, i) => { if (i) li.append(", "); const a = el("a", null, u); a.href = /^https?:/.test(u) ? u : "https://" + u; a.target = "_blank"; a.rel = "noopener"; li.append(a); });
+    else li.append("không có");
+    ul.append(li); parts.push(ul);
+  }
+  const lb = state.loai_bo;
+  if (lb && lb.length) {
+    parts.push(el("h3", null, `Đã lược bỏ ${lb.length} truy vấn Otterly có năm cũ hoặc dấu ngoặc`));
+    const ul = el("ul"); lb.forEach(x => ul.append(el("li", null, `${x.query} (${x.ly_do || x.reason || ""})`))); parts.push(ul);
+  }
+  if (state.ot_status) { parts.push(el("h3", null, "Otterly")); parts.push(el("p", null, state.ot_status)); }
+  const hasOt = state.items.some(x => /otterly/i.test(x.nguon || ""));
+  if (state.id && !hasOt && histCol) {
+    if (!state.ot_status) parts.push(el("h3", null, "Otterly"));
+    parts.push(el("p", "note", "Bổ sung truy vấn Otterly vào kết quả này: dán link kết quả trong email Otterly gửi về (dạng geo.otterly.ai/...?result=...)."));
+    const row = el("div", "otadd");
+    const inp = el("input"); inp.type = "url"; inp.placeholder = "https://geo.otterly.ai/geo/ai-query-fan-out/?result=..."; inp.setAttribute("aria-label", "Link kết quả Otterly");
+    const b = el("button", null, "Thêm Otterly"); b.type = "button";
+    b.onclick = () => addOtterlyToRun(state.id, state.root, inp.value.trim(), b);
+    row.append(inp, b); parts.push(row);
+  }
+  box.append(...parts); box.hidden = !parts.length;
+}
+let pendingOt = null;
+async function addOtterlyToRun(id, root, url, btn) {
+  const m = url.match(/geo\.otterly\.ai\/\S*[?&]result=([A-Za-z0-9_-]+)/i);
+  if (!m) { setStatus("error", "Link chưa đúng. Hãy dán nguyên link kết quả trong email Otterly, có đoạn ?result=..."); return; }
+  if (mcpNs === undefined) mcpNs = window.claude ? await claude.use("mcp") : null;
+  if (!mcpNs) { setStatus("error", "Chế độ xem này chưa dùng được Claude Code Remote nên chưa bổ sung được Otterly."); return; }
+  btn.disabled = true;
+  try {
+    await mcpNs.callTool(RC, "fire_trigger", { trigger_id: TRIGGER_ID, text: JSON.stringify({ mode: "otterly", job: id, root, otterly_url: url }) });
+    pendingOt = { id, since: Date.now() };
+    setStatus("loading", `Đang lấy truy vấn Otterly cho "${root}" và gộp vào kết quả. Thường mất 2 đến 4 phút, xong sẽ tự cập nhật ở đây.`);
+  } catch (err) {
+    btn.disabled = false;
+    const code = err && err.code;
+    setStatus("error", (code === "server_unavailable" || code === "upstream_error") ? "Không chắc yêu cầu đã gửi được. Chờ vài phút rồi mở lại kết quả này trước khi bấm lại." : "Không gửi được yêu cầu: " + (MCP_ERR[code] || "hãy thử lại sau") + ".");
+  }
+}
+function render() {
+  $("result").hidden = !state.items.length;
+  if (!state.items.length) return;
+  renderInsight();
+  $("r-title").textContent = state.root;
+  const list = filtered();
+  const meta = $("r-meta"); meta.textContent = "";
+  if (state.example) meta.append(el("span", "badge", "Ví dụ mẫu"));
+  if (state.note) meta.append(el("span", null, state.note + " ·"));
+  if (state.savedAt) meta.append(el("span", null, "Phân tích lúc " + fmtDate(state.savedAt) + " ·"));
+  meta.append(el("span", null, list.length === state.items.length ? `${list.length} truy vấn con` : `${list.length} / ${state.items.length} truy vấn con`));
+  const c = countBy(state.items);
+  meta.append(el("span", null, "· " + SOURCES.filter(k => c[k]).map(k => `${c[k]} ${k}`).join(", ")));
+
+  const box = $("groups"); box.innerHTML = "";
+  if (!list.length) { box.append(el("div", "empty", "Không có truy vấn nào khớp bộ lọc. Hãy chọn lại nhóm, ý định hoặc nguồn.")); return; }
+  GROUPS.forEach(g => {
+    const rows = list.filter(x => x.nhom === g.k).sort(rowOrder);
+    if (!rows.length) return;
+    const sec = el("section", "group");
+    const h = el("h3", null, g.k);
+    h.append(el("span", "n", rows.length), el("span", "def", g.def));
+    const t = el("table");
+    t.innerHTML = "<thead><tr><th>Truy vấn con</th><th>Ý định</th><th>Loại nội dung</th><th>Nguồn</th></tr></thead>";
+    const body = el("tbody");
+    rows.forEach(r => {
+      const tr = el("tr");
+      const i = el("td", "i"); const p = el("span", "pill", r.y_dinh); p.dataset.i = r.y_dinh; i.append(p);
+      const c = el("td", "c"); c.append(el("span", "ctype", r.loai_noi_dung));
+      const sc = el("td", "s"); const sw = el("div", "sw"); sc.append(sw); sw.append(srcBadge(r.nguon));
+      if (r.tan_suat) sw.append(el("span", "freq", r.tan_suat));
+      tr.append(el("td", "q", r.query), i, c, sc);
+      body.append(tr);
+    });
+    t.append(body); sec.append(h, t); box.append(sec);
+  });
+}
+["fg", "fi", "fs"].forEach(id => $(id).addEventListener("change", render));
+
+function setStatus(kind, msg, retry) {
+  const s = $("status");
+  if (!kind) { s.hidden = true; s.innerHTML = ""; return; }
+  s.hidden = false; s.className = "status " + kind; s.innerHTML = "";
+  if (kind === "loading") s.append(el("span", "spin"));
+  s.append(el("p", null, msg));
+  if (retry) { const b = el("button", null, "Thử lại"); b.type = "button"; b.onclick = () => $("f").requestSubmit(); s.append(b); }
+}
+function toast(msg) { $("toast").textContent = msg; clearTimeout(toast.t); toast.t = setTimeout(() => $("toast").textContent = "", 4000); }
+
+// ---- Nạp truy vấn Otterly: file CSV (Export all prompts), bảng copy, hoặc danh sách ----
+const TYPE_RE = /^(reformulation|related( queries)?|implicit( queries)?|comparative( queries)?|entity[ _]expansions?|personalized( queries)?)$/i;
+const SKIP_RE = /^(query|type|user intent|reasoning|prompt|mode|status|ready|expanded queries|target count|how it works|results|chatgpt|ai overview|google ai mode|new analysis|↗.*|↓.*|\d+)$/i;
+function parseCsv(text, sep) {
+  const rows = []; let row = [], cur = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) { if (ch === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === sep) { row.push(cur); cur = ""; }
+    else if (ch === "\n") { row.push(cur); rows.push(row); row = []; cur = ""; }
+    else cur += ch;
+  }
+  if (cur || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+function parseOtterly(text) {
+  text = String(text || "").replace(/^﻿/, "").replace(/\r/g, "").replace(/ /g, " ");
+  const lines = text.split("\n").map(l => l.trim());
+  const head = (lines.find(Boolean) || "").toLowerCase();
+  // 1. File CSV từ Export all prompts: query;type;user_intent;reasoning
+  if (/^"?query"?\s*[;,]/.test(head)) {
+    const sep = head.includes(";") ? ";" : ",";
+    return parseCsv(text.trim(), sep).slice(1).filter(c => c[0] && c[0].trim()).map(c => ({ query: c[0].trim(), type: (c[1] || "").trim() }));
+  }
+  const rows = [];
+  // 2. Bảng copy có dấu tab: Query \t Type \t ...
+  lines.forEach(l => {
+    const c = l.split("\t").map(s => s.trim());
+    if (c.length >= 2 && TYPE_RE.test(c[1]) && c[0]) rows.push({ query: c[0], type: c[1] });
+  });
+  if (rows.length) return rows;
+  // 3. Bảng copy mỗi ô một dòng: dòng ngay trước TYPE là truy vấn
+  const nb = lines.filter(Boolean);
+  nb.forEach((l, i) => { if (TYPE_RE.test(l) && i > 0 && !TYPE_RE.test(nb[i - 1]) && !SKIP_RE.test(nb[i - 1])) rows.push({ query: nb[i - 1], type: l }); });
+  if (rows.length) return rows;
+  // 4. Danh sách truy vấn, mỗi dòng một truy vấn
+  return nb.filter(l => !SKIP_RE.test(l) && !/^https?:\/\//i.test(l) && l.length >= 4 && l.length <= 300)
+    .map(l => ({ query: l.replace(/^\s*(\d+[.)]|[-*•])\s+/, ""), type: "" }));
+}
+// Lược bỏ truy vấn không phù hợp: có năm cũ hoặc có dấu ngoặc
+const THIS_YEAR = new Date().getFullYear();
+const UNIT_AFTER = /^\s*(w|kw|kwh|lm|lumen|k|mm|cm|m|v|ma|mah|đ|vnd|đồng|lux|giờ|h)(?![\p{L}\d])/iu;
+// Năm nằm trong số hiệu tiêu chuẩn, ví dụ QCVN 09:2017, TCVN 7114-1:2008, IEC 60598-1:2014
+const STD_BEFORE = /(:|\b(tcvn|qcvn|tcxdvn|qcxdvn|iec|iso|en|bs|ansi|ieee|ies|lm|tm|jis|gb|din|ul)[\s\-]*[\d.\-]*[:\-\/]?\s*)$/i;
+function badReason(q) {
+  if (/[()（）\[\]{}]/.test(q)) return "có dấu ngoặc";
+  for (const m of q.matchAll(/(?<![\d.,])(19\d{2}|20\d{2})(?![\d.,]\d)/g)) {
+    const y = +m[1];
+    if (y < THIS_YEAR && y >= 1990 && !UNIT_AFTER.test(q.slice(m.index + 4)) && !STD_BEFORE.test(q.slice(0, m.index))) return "năm cũ " + y;
+  }
+  return "";
+}
+let otDropped = []; // [{query, reason}]
+let otRoot = "";
+function otMsg(text, kind) { otMsg.last = { text, kind }; renderOt(); }
+function addOtterly(rows, from) {
+  const seen = new Set(otterly.map(x => norm(x.query)));
+  let added = 0;
+  let dup = 0, drop = 0;
+  rows.forEach(r => {
+    const k = norm(r.query); if (!k) return;
+    if (seen.has(k)) { dup++; return; }
+    seen.add(k);
+    const why = badReason(r.query);
+    if (why) { if (!otDropped.some(d => norm(d.query) === k)) otDropped.push({ query: r.query, reason: why }); drop++; return; }
+    otterly.push(r); added++;
+  });
+  if (added && !otRoot) otRoot = $("q").value.trim();
+  if (!rows.length) otMsg(`Không đọc được truy vấn nào từ ${from}. Hãy dùng file CSV tải bằng nút Export all prompts, hoặc copy cả bảng kết quả trên trang Otterly.`, "bad");
+  else otMsg(`Đã nạp ${added} truy vấn từ ${from}.` + (drop ? ` Lược bỏ ${drop} truy vấn có năm cũ hoặc dấu ngoặc.` : "") + (dup ? ` Bỏ ${dup} truy vấn trùng.` : ""), added ? "good" : "bad");
+  return added || (rows.length ? -1 : 0);
+}
+function renderOt() {
+  const s = $("otstate"); s.innerHTML = "";
+  if (otMsg.last) s.append(el("p", "src-msg " + otMsg.last.kind, otMsg.last.text));
+  const cur = $("q").value.trim();
+  if (otterly.length && otRoot && norm(cur) !== norm(otRoot)) s.append(el("p", "src-msg warn", `Truy vấn Otterly đang nạp là của "${otRoot}", khác truy vấn gốc hiện tại. Bấm Bỏ truy vấn Otterly nếu không dùng chung.`));
+  if (otterly.length) {
+    s.append(el("span", "badge b-ot", "Otterly"), el("span", "cnt", `${otterly.length} truy vấn sẵn sàng gộp`));
+    const b = el("button", null, "Bỏ truy vấn Otterly"); b.type = "button";
+    b.onclick = () => { otterly = []; otDropped = []; otRoot = ""; $("otfile").value = ""; otMsg.last = null; renderOt(); };
+    s.append(b);
+  } else if (!otMsg.last) s.append(el("span", "note", "Chưa nạp truy vấn Otterly. Bấm Phân tích lúc này sẽ chỉ có truy vấn dự đoán."));
+  if (otDropped.length) {
+    const d = el("details", "src-drop"); d.append(el("summary", null, `Xem ${otDropped.length} truy vấn đã lược bỏ`));
+    const ul = el("ul"); otDropped.forEach(x => { const li = el("li", null, x.query + " "); li.append(el("span", null, "(" + x.reason + ")")); ul.append(li); });
+    d.append(ul); s.append(d);
+  }
+}
+async function readFile(f) {
+  if (!f) return;
+  try { addOtterly(parseOtterly(await f.text()), "file " + f.name); }
+  catch (_) { otMsg("Không đọc được file. Hãy chọn đúng file CSV tải từ Otterly.", "bad"); }
+}
+$("otfile").addEventListener("change", e => readFile(e.target.files && e.target.files[0]));
+function loadPasted() {
+  const v = $("otpaste").value;
+  if (!v.trim()) { otMsg("Ô dán đang trống. Hãy dán kết quả Otterly vào trước.", "bad"); $("otpaste").focus(); return; }
+  if (/geo\.otterly\.ai\/\S*result=/i.test(v) && parseOtterly(v).every(r => /^https?:/i.test(r.query))) { otMsg("Trang này không tự mở được link Otterly. Hãy mở link, bấm Export all prompts rồi chọn file CSV vừa tải.", "bad"); return; }
+  if (addOtterly(parseOtterly(v), "nội dung dán") !== 0) $("otpaste").value = "";
+}
+$("otload").onclick = loadPasted;
+$("q").addEventListener("input", () => { if (otterly.length) renderOt(); });
+$("otpaste").addEventListener("paste", () => setTimeout(loadPasted, 0));
+const srcBox = document.querySelector(".src");
+["dragenter", "dragover"].forEach(t => srcBox.addEventListener(t, e => { if (e.dataTransfer && [...e.dataTransfer.types].includes("Files")) { e.preventDefault(); srcBox.classList.add("drag"); } }));
+["dragleave", "drop"].forEach(t => srcBox.addEventListener(t, () => srcBox.classList.remove("drag")));
+srcBox.addEventListener("drop", e => { if (e.dataTransfer && e.dataTransfer.files.length) { e.preventDefault(); readFile(e.dataTransfer.files[0]); } });
+$("copyroot").onclick = async () => {
+  const v = $("q").value.trim();
+  if (!v) { otMsg("Hãy nhập truy vấn gốc trước.", "bad"); $("q").focus(); return; }
+  try { await navigator.clipboard.writeText(v); otMsg(`Đã copy "${v}". Dán vào ô của Otterly.`, "good"); }
+  catch (_) { const ok = fallbackCopy(v); otMsg(ok ? `Đã copy "${v}". Dán vào ô của Otterly.` : "Trình duyệt chặn copy. Hãy tự chọn và copy truy vấn gốc.", ok ? "good" : "bad"); }
+};
+renderOt();
+
+// ---- Gọi Claude ----
+function buildPrompt(root, n, lang, ot) {
+  const outLang = lang === "en" ? "English" : "tiếng Việt tự nhiên, đúng cách người Việt gõ tìm kiếm";
+  const otPart = ot.length ? `
+PHẦN A. Dưới đây là ${ot.length} truy vấn lấy từ công cụ Otterly cho cùng truy vấn gốc, đánh số từ 0. Phân loại TỪNG truy vấn (không bỏ sót, không viết lại nội dung truy vấn). Cột TYPE là cách Otterly phân loại, chỉ dùng làm gợi ý.
+${ot.map((x, i) => `${i}. ${x.query} [TYPE: ${x.type || "?"}]`).join("\n")}
+
+PHẦN B. Tạo TỐI ĐA ${n} truy vấn dự đoán MỚI, chỉ để lấp các nhóm mà Phần A còn trống hoặc chỉ có 1 truy vấn. Không trùng ý với bất kỳ truy vấn nào ở Phần A. Nếu Phần A đã phủ tốt mọi nhóm thì tạo ít hơn, không cần đủ ${n}.` : `
+Tạo TỐI ĐA ${n} truy vấn dự đoán. Đây là mức trần, không phải số phải đạt: chỉ tạo những truy vấn thật sự khác ý nhau, đủ thì dừng.`;
+  return `Bạn mô phỏng kỹ thuật "query fan-out" của các hệ thống tìm kiếm AI: từ một truy vấn gốc, hệ thống tự tách ra nhiều truy vấn con và gửi lên công cụ tìm kiếm để tổng hợp câu trả lời.
+
+Hình dung cách 5 nền tảng tách truy vấn gốc rồi GỘP thành một danh sách, bỏ trùng ý:
+- Google AI Mode: tách rộng và sâu, nhiều câu hỏi ngầm định, mở rộng thông số, tiêu chuẩn, thương hiệu, theo đối tượng và vị trí.
+- Google AI Overviews: ít truy vấn, sát truy vấn gốc, câu ngắn kiểu từ khóa.
+- ChatGPT, Gemini, Claude: thường tìm chính truy vấn gốc trước, sau đó gộp nhiều ý vào một câu tìm kiểu từ khóa.
+
+Truy vấn gốc: "${root}"
+Ngữ cảnh: thị trường Việt Nam, người tìm thường là nhà thầu, chủ đầu tư, quản lý nhà xưởng, đại lý hoặc người mua lẻ.
+${otPart}
+Ngôn ngữ của truy vấn dự đoán: ${outLang}. Mỗi truy vấn cụ thể, khác nhau rõ ràng. Không bịa số liệu cụ thể (giá, công suất). Không ghi năm trong truy vấn, không dùng dấu ngoặc.
+Toàn bộ kết quả phải phủ đủ 7 nhóm, mỗi nhóm ít nhất 1 truy vấn:
+${GROUPS.map(g => `- ${g.k}: ${g.def}`).join("\n")}
+
+Trả về DUY NHẤT một object JSON, không giải thích, không markdown:
+{"otterly": [{"i": <số thứ tự ở Phần A>, "nhom": "...", "y_dinh": "...", "loai_noi_dung": "..."}], "du_doan": [{"query": "...", "nhom": "...", "y_dinh": "...", "loai_noi_dung": "..."}]}
+${ot.length ? "" : 'Mảng "otterly" để rỗng.\n'}- "nhom": một trong ${JSON.stringify(GKEYS)}
+- "y_dinh": một trong ${JSON.stringify(INTENTS)}
+- "loai_noi_dung": loại nội dung nên có để trả lời, một trong ${JSON.stringify(CTYPES)}
+Giữ đúng chính xác chuỗi giá trị của "nhom", "y_dinh", "loai_noi_dung".`;
+}
+
+function pick(v, list, fallback) {
+  const n = norm(v);
+  return list.find(x => norm(x) === n) || list.find(x => n && (norm(x).includes(n) || n.includes(norm(x)))) || fallback;
+}
+// Chuẩn hóa một dòng đã lưu: nhóm có thể bị ghi kèm định nghĩa, ví dụ "Diễn đạt lại: cùng ý định, cách gọi khác"
+function fixItem(x) {
+  return { ...x, nhom: pick(String(x.nhom || "").split(":")[0], GKEYS, "Liên quan"), y_dinh: pick(String(x.y_dinh || "").split(":")[0], INTENTS, "Thông tin"), loai_noi_dung: pick(String(x.loai_noi_dung || "").split(":")[0], CTYPES, "Bài blog") };
+}
+// Gộp dòng trùng (khác hoa thường, dấu cách) trong một lần chạy, nối nguồn lại
+function dedupeItems(items) {
+  const m = new Map();
+  items.forEach(x => {
+    const k = norm(x.query); if (!k) return;
+    const p = m.get(k);
+    if (!p) { m.set(k, { ...x }); return; }
+    const src = [...new Set([...String(p.nguon || "").split(","), ...String(x.nguon || "").split(",")].map(t => t.trim()).filter(Boolean))];
+    if (src.length) p.nguon = src.join(", ");
+    if (!p.tan_suat && x.tan_suat) p.tan_suat = x.tan_suat;
+  });
+  return [...m.values()];
+}
+function otGroup(type) { const m = OT_MAP.find(([re]) => re.test(type || "")); return m ? m[1] : "Liên quan"; }
+function merge(raw, ot) {
+  let cls = [], pred = [];
+  if (Array.isArray(raw)) { raw.forEach(x => { if (x && typeof x.i === "number") cls.push(x); else if (x && x.query) pred.push(x); }); }
+  else if (raw) { cls = Array.isArray(raw.otterly) ? raw.otterly : []; pred = Array.isArray(raw.du_doan) ? raw.du_doan : []; }
+  const byI = new Map(cls.filter(x => x && Number.isInteger(x.i)).map(x => [x.i, x]));
+  const seen = new Set(), out = [];
+  ot.forEach((o, i) => {
+    const c = byI.get(i) || {};
+    const k = norm(o.query); if (seen.has(k)) return; seen.add(k);
+    out.push({ query: o.query, nhom: pick(c.nhom, GKEYS, otGroup(o.type)), y_dinh: pick(c.y_dinh, INTENTS, "Thông tin"), loai_noi_dung: pick(c.loai_noi_dung, CTYPES, "Bài blog"), nguon: "Otterly", kieu_otterly: o.type || "" });
+  });
+  pred.forEach(x => {
+    if (!x || typeof x.query !== "string" || !x.query.trim()) return;
+    const k = norm(x.query); if (seen.has(k) || badReason(x.query)) return; seen.add(k);
+    out.push({ query: x.query.trim(), nhom: pick(x.nhom, GKEYS, "Liên quan"), y_dinh: pick(x.y_dinh, INTENTS, "Thông tin"), loai_noi_dung: pick(x.loai_noi_dung, CTYPES, "Bài blog"), nguon: "Dự đoán" });
+  });
+  return out;
+}
+function salvage(text) {
+  const out = [];
+  for (const m of String(text || "").matchAll(/\{[^{}]*\}/g)) { try { out.push(JSON.parse(m[0])); } catch (_) {} }
+  return out;
+}
+
+const ERR = {
+  not_granted: "Bạn chưa cho phép trang này dùng Claude. Hãy tải lại trang và bấm Cho phép khi được hỏi.",
+  sampling_disabled: "Tài khoản hoặc tổ chức của bạn chưa bật tính năng gọi Claude từ artifact.",
+  rate_limited: "Bạn gửi quá nhiều yêu cầu hoặc đã chạm giới hạn sử dụng. Đợi một lát rồi thử lại.",
+  session_expired: "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại claude.ai rồi thử lại.",
+  refused: "Claude từ chối xử lý truy vấn này. Hãy diễn đạt lại truy vấn gốc.",
+  empty_completion: "Claude không trả về kết quả. Hãy thử lại với ít truy vấn dự đoán hơn.",
+  invalid_json: "Kết quả trả về không đúng định dạng JSON. Hãy bấm Thử lại.",
+  prompt_too_large: "Truy vấn gốc hoặc danh sách Otterly quá dài. Hãy rút gọn lại.",
+  upstream_error: "Mất kết nối tới Claude giữa chừng. Hãy bấm Thử lại."
+};
+
+$("f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const root = $("q").value.trim();
+  if (!root) { setStatus("error", "Hãy nhập truy vấn gốc trước khi phân tích."); $("q").focus(); return; }
+  if (pendingJob) { setStatus("loading", "Đang chạy đầy đủ cho một truy vấn khác. Đợi kết quả hiện ra rồi bấm lại."); return; }
+  const why = await runFull(root);
+  if (why === "" || why === "stop") return;
+  fallbackWhy = why;
+  if (!sampleFn && window.claude) sampleFn = await claude.use("sample");
+  if (!sampleFn) { setStatus("error", "Trang này chưa kết nối được với Claude. Hãy mở artifact trong claude.ai khi đã đăng nhập."); return; }
+  const n = +document.querySelector('input[name="cnt"]:checked').value;
+  const ot = otterly.slice();
+  const total = n + ot.length;
+  ctl = new AbortController();
+  $("go").disabled = true; $("stop").hidden = false;
+  setStatus("loading", ot.length
+    ? `Đang phân loại ${ot.length} truy vấn Otterly và tạo thêm tối đa ${n} truy vấn dự đoán cho "${root}". Thường mất 20 đến 90 giây.`
+    : `Đang phân tích "${root}" trên 5 nền tảng. Claude thường cần 10 đến 60 giây để suy nghĩ trước khi trả kết quả.`);
+  try {
+    let raw;
+    try {
+      raw = await sampleFn.json(buildPrompt(root, n, $("lang").value, ot), {
+        signal: ctl.signal,
+        onText: ({ text }) => {
+          const got = (text.match(/"(query|i)"\s*:/g) || []).length;
+          setStatus("loading", `Đang xử lý truy vấn: ${Math.min(got, total)} / ${total}`);
+        }
+      });
+    } catch (err) {
+      if (err && ["invalid_json", "upstream_error", "rate_limited"].includes(err.code) && err.text) {
+        const part = salvage(err.text);
+        if (part.length >= 3) { raw = part; toast(`Kết quả bị cắt giữa chừng, giữ lại phần hoàn chỉnh.`); }
+        else throw err;
+      } else throw err;
+    }
+    const items = merge(raw, ot);
+    if (!items.length) throw { code: "invalid_json" };
+    const loai_bo = otDropped.map(x => ({ query: x.query, ly_do: x.reason }));
+    state = { root, items, example: false, note: "Phân tích nhanh, không có dữ liệu Google", loai_bo };
+    currentId = null;
+    $("fg").value = ""; $("fi").value = ""; $("fs").value = "";
+    setStatus(null); render();
+    if (fallbackWhy) toast("Phân tích nhanh, không có dữ liệu Google vì " + fallbackWhy + ".");
+    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+    saveHistory(root, items);
+  } catch (err) {
+    const code = err && err.code;
+    if (code === "cancelled") setStatus(null);
+    else {
+      const retry = ["invalid_json", "upstream_error", "empty_completion", "rate_limited"].includes(code) || !ERR[code];
+      setStatus("error", ERR[code] || "Có lỗi không xác định khi gọi Claude. Hãy thử lại.", retry);
+    }
+  } finally {
+    $("go").disabled = false; $("stop").hidden = true; ctl = null;
+  }
+});
+$("stop").onclick = () => ctl && ctl.abort();
+// ---- Chạy có Google: kích hoạt routine trong project, routine chạy /query-fan-out rồi ghi kết quả vào db runs/<job> ----
+const TRIGGER_ID = "trig_01GwvKbnDm7jnovRY7rie5dq";
+const RC = "Claude Code Remote";
+let mcpNs, pendingJob = null, pendingTimer = null, fallbackWhy = "";
+const MCP_ERR = {
+  server_not_connected: "chưa kết nối Claude Code Remote (thêm trong claude.ai, Settings, Connectors)",
+  needs_reauth: "kết nối Claude Code Remote đã hết hạn (kết nối lại trong claude.ai, Settings, Connectors)",
+  not_in_manifest: "bạn chưa cho phép trang dùng Claude Code Remote (tải lại trang và bấm Cho phép)",
+  not_granted: "bạn chưa cho phép trang dùng Claude Code Remote (tải lại trang và bấm Cho phép)",
+  blocked_by_policy: "tổ chức của bạn chặn Claude Code Remote",
+  approval_required: "tổ chức của bạn yêu cầu duyệt từng lần gọi Claude Code Remote",
+  tool_error: "không kích hoạt được lượt chạy đầy đủ (chỉ chủ sở hữu project Query fan-out dùng được)"
+};
+// Trả về "" nếu đã gửi chạy đầy đủ, hoặc lý do không chạy được để chuyển sang phân tích nhanh.
+async function runFull(root) {
+  if (!histCol) return "chỉ chủ sở hữu trang mới chạy đầy đủ được, vì kết quả lưu vào Lịch sử";
+  if (mcpNs === undefined) mcpNs = window.claude ? await claude.use("mcp") : null;
+  if (!mcpNs) return "chế độ xem này chưa dùng được Claude Code Remote";
+  const job = "nut-" + Date.now().toString(36);
+  const count = +document.querySelector('input[name="cnt"]:checked').value;
+  const payload = { root, count, job, lang: $("lang").value };
+  if (otterly.length) payload.otterly = otterly.map(x => ({ query: x.query, type: x.type || "" }));
+  if (otDropped.length) payload.otterly_loai_bo = otDropped.map(x => ({ query: x.query, ly_do: x.reason }));
+  $("go").disabled = true;
+  setStatus("loading", `Đang gửi yêu cầu cho "${root}"...`);
+  try {
+    await mcpNs.callTool(RC, "fire_trigger", { trigger_id: TRIGGER_ID, text: JSON.stringify(payload) });
+    pendingJob = job;
+    setStatus("loading", `Đã gửi. Claude đang chạy đầy đủ cho "${root}"${otterly.length ? ` kèm ${otterly.length} truy vấn Otterly` : ""}. Thường mất 3 đến 8 phút, kết quả sẽ tự mở ở đây và lưu vào Lịch sử. Bạn có thể đóng trang.`);
+    clearTimeout(pendingTimer);
+    pendingTimer = setTimeout(() => { if (pendingJob === job) { pendingJob = null; $("go").disabled = false; setStatus("error", "Chưa thấy kết quả sau 15 phút. Hãy xem lại Lịch sử sau, hoặc hỏi Claude trong project."); } }, 15 * 60 * 1000);
+    return "";
+  } catch (err) {
+    $("go").disabled = false;
+    const code = err && err.code;
+    if (code === "server_unavailable" || code === "upstream_error") { setStatus("error", "Không chắc yêu cầu đã gửi được. Chờ vài phút xem Lịch sử có kết quả không trước khi bấm lại."); return "stop"; }
+    return MCP_ERR[code] || "không gửi được yêu cầu chạy đầy đủ";
+  }
+}
+
+// Làm mới: xóa truy vấn gốc, dữ liệu Otterly và kết quả đang xem. Lịch sử giữ nguyên.
+$("reset").onclick = () => {
+  if (ctl) ctl.abort();
+  $("q").value = ""; $("otpaste").value = ""; $("otfile").value = "";
+  otterly = []; otDropped = []; otRoot = ""; otMsg.last = null; renderOt();
+  $("c20").checked = true;
+  $("fg").value = ""; $("fi").value = ""; $("fs").value = "";
+  state = { root: "", items: [], example: false }; currentId = null;
+  $("cmp").hidden = true; setStatus(null); $("toast").textContent = "";
+  render(); if (histCol) renderHistory();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  $("q").focus();
+};
+$("q").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("f").requestSubmit(); });
+
+// ---- Copy / CSV ----
+const COLS = [["query", "Truy vấn con"], ["nhom", "Nhóm"], ["y_dinh", "Ý định"], ["loai_noi_dung", "Loại nội dung"], ["nguon", "Nguồn"], ["tan_suat", "Tần suất"], ["kieu_otterly", "Kiểu Otterly"]];
+const cell = (r, k) => k === "nguon" ? (r.nguon || "Dự đoán") : String(r[k] || "");
+function tsv() {
+  return [COLS.map(c => c[1]), ...filtered().map(r => COLS.map(c => cell(r, c[0])))].map(a => a.join("\t")).join("\n");
+}
+function csv() {
+  const esc = v => /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  return "﻿" + [["truy_van_goc", ...COLS.map(c => c[0])], ...filtered().map(r => [state.root, ...COLS.map(c => cell(r, c[0]))])].map(a => a.map(esc).join(",")).join("\r\n");
+}
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.append(ta); ta.select();
+  let ok = false; try { ok = document.execCommand("copy"); } catch (_) {}
+  ta.remove(); return ok;
+}
+$("copy").onclick = async () => {
+  const text = tsv(), n = filtered().length;
+  try { await navigator.clipboard.writeText(text); toast(`Đã copy ${n} dòng. Dán vào Google Sheets hoặc Excel sẽ tự chia cột.`); }
+  catch (_) { toast(fallbackCopy(text) ? `Đã copy ${n} dòng.` : "Trình duyệt chặn copy. Hãy thử Tải CSV."); }
+};
+$("csv").onclick = async () => {
+  if (!downloads && window.claude) downloads = await claude.use("downloads");
+  const slug = norm(state.root).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "query";
+  if (!downloads) { toast("Không tải được file ở chế độ xem này. Hãy dùng Copy tất cả."); return; }
+  try { await downloads.save({ filename: `fan-out-${slug}.csv`, data: csv() }); toast("Đã tải file CSV."); }
+  catch (err) { if (err && err.code !== "declined") toast("Không tải được file CSV. Hãy dùng Copy tất cả."); }
+};
+
+// ---- Lịch sử (db: collection runs, chỉ chủ sở hữu và người chỉnh sửa) ----
+let histCol = null, history = [], currentId = null;
+const picked = new Set();
+const fmtDate = ms => { try { return new Date(ms).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (_) { return ""; } };
+
+async function initHistory() {
+  const note = $("h-note");
+  if (!window.claude) { note.textContent = "Lịch sử chỉ hoạt động khi mở trang trong claude.ai."; return; }
+  const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+  const canEdit = user ? await user.canEdit() : false;
+  if (!db || !canEdit) { note.textContent = "Lịch sử chỉ hiện với chủ sở hữu và người được cấp quyền chỉnh sửa trang này."; return; }
+  histCol = db.collection("runs");
+  histCol.orderBy("createdAt", "desc").limit(200).onSnapshot(snap => {
+    history = snap.docs.filter(d => d.exists).map(d => ({ id: d.id, ...d.data() }));
+    for (const id of [...picked]) if (!history.some(h => h.id === id)) picked.delete(id);
+    if (pendingOt) { const h = history.find(x => x.id === pendingOt.id); if (h && (h.otterly_cap_nhat || 0) > pendingOt.since) { pendingOt = null; setStatus(null); openRun(h); toast(h.loi_otterly ? "Chưa bổ sung được Otterly: " + h.loi_otterly : "Đã gộp truy vấn Otterly vào kết quả."); } }
+    if (pendingJob) { const h = history.find(x => x.id === pendingJob); if (h) { pendingJob = null; clearTimeout(pendingTimer); $("go").disabled = false; setStatus(null); openRun(h); toast(h.loi ? "Lần chạy có lỗi: " + h.loi : `Đã có kết quả đầy đủ cho "${h.root}".`); } }
+    renderHistory();
+  }, () => { note.textContent = "Không tải được lịch sử. Hãy tải lại trang."; });
+}
+
+function renderHistory() {
+  const list = $("hlist"), note = $("h-note");
+  $("h-title").textContent = `Lịch sử phân tích (${history.length})`;
+  list.innerHTML = "";
+  if (!history.length) { note.textContent = "Chưa có lần phân tích nào. Mỗi lần bấm Phân tích hoặc chạy /query-fan-out trong project, kết quả sẽ tự lưu ở đây."; list.hidden = true; updateCmpBtn(); return; }
+  note.textContent = "Bấm Mở để xem lại. Tích chọn 2 hoặc 3 lần phân tích rồi bấm So sánh. Nhãn xanh lá là truy vấn thật từ /query-fan-out, nhãn hồng là truy vấn người dùng Google (PAA, Related, Autocomplete), nhãn xanh dương là truy vấn Otterly.";
+  list.hidden = false;
+  history.forEach(h => {
+    const row = el("div", "hrow" + (h.id === currentId ? " cur" : ""));
+    const cb = el("input"); cb.type = "checkbox"; cb.id = "h-" + h.id; cb.checked = picked.has(h.id);
+    cb.setAttribute("aria-label", "Chọn để so sánh: " + h.root);
+    cb.onchange = () => {
+      if (cb.checked) { if (picked.size >= 3) { cb.checked = false; toast("Chỉ so sánh tối đa 3 lần phân tích."); return; } picked.add(h.id); }
+      else picked.delete(h.id);
+      updateCmpBtn();
+    };
+    const open = el("button", null, "Mở"); open.type = "button";
+    open.onclick = () => openRun(h);
+    const del = el("button", "del", "Xóa"); del.type = "button";
+    del.onclick = async () => {
+      if (!del.classList.contains("arm")) { del.classList.add("arm"); del.textContent = "Bấm lần nữa để xóa"; setTimeout(() => { del.classList.remove("arm"); del.textContent = "Xóa"; }, 4000); return; }
+      del.disabled = true;
+      try { await histCol.doc(h.id).delete(); toast("Đã xóa khỏi lịch sử."); if (currentId === h.id) currentId = null; }
+      catch (_) { del.disabled = false; toast("Không xóa được. Hãy thử lại."); }
+    };
+    const c = countBy(h.items || []);
+    const tags = [];
+    if (c["Thật"]) tags.push(el("span", "badge b-real", `${c["Thật"]} thật`));
+    if (c["Google"]) tags.push(el("span", "badge b-gg", `${c["Google"]} Google`));
+    if (c["Otterly"]) tags.push(el("span", "badge b-ot", `${c["Otterly"]} Otterly`));
+    row.append(cb, el("span", "hr", h.root), ...tags, el("span", "hm", `${fmtDate(h.createdAt)} · ${(h.items || []).length} truy vấn`), open, del);
+    list.append(row);
+  });
+  updateCmpBtn();
+}
+function openRun(h) {
+  state = { root: h.root, items: dedupeItems((h.items || []).map(fixItem)), example: false, savedAt: h.createdAt, note: h.loi ? "Lần chạy có lỗi: " + h.loi : "", ghi_chu: h.ghi_chu, nhan_xet: h.nhan_xet, trich_dan: h.trich_dan, loai_bo: h.otterly_loai_bo, ot_status: h.otterly_trang_thai, id: h.id };
+  currentId = h.id; $("q").value = h.root; $("fg").value = ""; $("fi").value = ""; $("fs").value = "";
+  $("cmp").hidden = true; render(); renderHistory();
+  $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function updateCmpBtn() { const b = $("cmpbtn"); b.disabled = picked.size < 2; b.textContent = picked.size ? `So sánh (${picked.size})` : "So sánh"; }
+
+async function saveHistory(root, items) {
+  if (!histCol) return;
+  const ref = histCol.doc();
+  try {
+    const doc = { root, createdAt: Date.now(), count: items.length, lang: $("lang").value, source: "trang", ghi_chu: "Phân tích nhanh trên trang, không có dữ liệu Thật và Google.", items: items.map(x => ({ ...x })) };
+    if (otDropped.length) doc.otterly_loai_bo = otDropped.map(x => ({ query: x.query, ly_do: x.reason }));
+    await ref.set(doc);
+    currentId = ref.id; renderHistory();
+  } catch (e) { toast(e && e.code === "quota_exceeded" ? "Lịch sử đã đầy. Hãy xóa bớt các lần phân tích cũ." : "Không lưu được vào lịch sử."); }
+}
+
+function labelOf(h, i) { return `${i + 1}. ${h.root.length > 28 ? h.root.slice(0, 27) + "…" : h.root}`; }
+$("cmpbtn").onclick = () => {
+  const runs = history.filter(h => picked.has(h.id));
+  if (runs.length < 2) return;
+  $("cmp-title").textContent = `So sánh ${runs.length} lần phân tích`;
+  const tg = $("cmp-g"); tg.innerHTML = "";
+  const th1 = el("thead"); const r1 = el("tr"); r1.append(el("th", null, "Nhóm")); runs.forEach((h, i) => r1.append(el("th", null, labelOf(h, i)))); th1.append(r1);
+  const tb1 = el("tbody");
+  [...GKEYS, "Tổng"].forEach(g => {
+    const tr = el("tr"); tr.append(el("td", null, g));
+    runs.forEach(h => { const it = (h.items || []).map(fixItem); tr.append(el("td", "num", String(g === "Tổng" ? it.length : it.filter(x => x.nhom === g).length))); });
+    tb1.append(tr);
+  });
+  tg.append(th1, tb1);
+  const map = new Map();
+  runs.forEach((h, i) => (h.items || []).map(fixItem).forEach(x => {
+    const k = norm(x.query); if (!map.has(k)) map.set(k, { query: x.query, nhom: x.nhom, in: new Set() }); map.get(k).in.add(i);
+  }));
+  const rows = [...map.values()].sort((a, b) => b.in.size - a.in.size || GKEYS.indexOf(a.nhom) - GKEYS.indexOf(b.nhom));
+  const tq = $("cmp-q"); tq.innerHTML = "";
+  const th2 = el("thead"); const r2 = el("tr"); r2.append(el("th", null, "Truy vấn con"), el("th", null, "Nhóm")); runs.forEach((h, i) => r2.append(el("th", null, labelOf(h, i)))); th2.append(r2);
+  const tb2 = el("tbody");
+  rows.forEach(r => { const tr = el("tr"); tr.append(el("td", "q", r.query), el("td", null, r.nhom)); runs.forEach((h, i) => tr.append(el("td", "yes", r.in.has(i) ? "✓" : ""))); tb2.append(tr); });
+  tq.append(th2, tb2);
+  $("cmp").hidden = false;
+  $("cmp").scrollIntoView({ behavior: "smooth", block: "start" });
+};
+$("cmpclose").onclick = () => { $("cmp").hidden = true; };
+initHistory();
+
+render();
+</script>
+
+
+
+</body></html>
