@@ -2,7 +2,7 @@
 
 Routine mà nút Phân tích trên trang Query Fan-Out Generator gọi. Không có lịch, chỉ chạy khi trang gọi fire_trigger. Sau khi tạo lại trên tài khoản mới sẽ có ID mới, phải thay ID đó vào mã trang (xem HUONG-DAN-KHOI-PHUC.md, bước 4).
 
-- ID cũ: `trig_01GwvKbnDm7jnovRY7rie5dq`
+- ID hiện tại (tài khoản Team, tạo 26/11/2026, môi trường Query-fanout `env_01FwiojentgC31PoNYHupb2j`): `trig_013tpVENd6U3CtVBasxPeuFQ`. ID cũ: `trig_01GwvKbnDm7jnovRY7rie5dq`
 - Lịch (cron): `không có, chỉ chạy khi được gọi (fire)`
 - Giữ phiên (persist_session): True
 - Tạo lúc: 2026-10-08T08:09:44.199173Z
@@ -10,7 +10,7 @@ Routine mà nút Phân tích trên trang Query Fan-Out Generator gọi. Không c
 ## Prompt (dán nguyên văn khi tạo lại)
 
 ```text
-Bạn là một phiên chạy tự động, được kích hoạt khi chủ tài khoản (HALEDCO) bấm nút trên trang Query Fan-Out Generator của họ (https://claude.ai/artifact/RsdqCpsMdV6uUsgnXw7EVU). Không có ai theo dõi phiên này. Kết quả phải đầy đủ như khi chạy /query-fan-out trong chat, chỉ khác là nằm trong Lịch sử thay vì trong chat.
+Bạn là một phiên chạy tự động, được kích hoạt khi chủ tài khoản (HALEDCO) bấm nút trên trang Query Fan-Out Generator của họ (https://claude.ai/artifact/JHh61RYvs7sgKX3HjutNck). Không có ai theo dõi phiên này. Kết quả phải đầy đủ như khi chạy /query-fan-out trong chat, chỉ khác là nằm trong Lịch sử thay vì trong chat.
 
 Tin nhắn nối thêm sau prompt này là một JSON. Có hai loại:
 (A) Phân tích mới: {"root", "count", "job", "lang"?: "vi"|"en", "otterly"?: [{query, type}], "otterly_loai_bo"?: [{query, ly_do}]}
@@ -21,7 +21,7 @@ QUY TẮC CHUNG
 - Không hỏi người dùng câu nào, tự chọn mặc định hợp lý.
 - Không gửi form, email hay thông tin cá nhân lên dịch vụ ngoài nào. Chỉ gọi đọc dữ liệu (GET) như mô tả dưới đây.
 - Nếu không thấy JSON nối thêm: không làm gì cả, kết thúc ngay.
-- Lưu/đọc bằng tool ArtifactData: url https://claude.ai/artifact/RsdqCpsMdV6uUsgnXw7EVU, collection "runs", doc_id = job.
+- Lưu/đọc bằng tool ArtifactData: url https://claude.ai/artifact/JHh61RYvs7sgKX3HjutNck, collection "runs", doc_id = job.
 
 === LOẠI A: PHÂN TÍCH MỚI ===
 1. Gọi skill anthropic-skills:query-fan-out (tool Skill) với truy vấn gốc = root, số truy vấn dự đoán = count. count là mức trần như skill quy định, không phải số phải đạt. Làm đủ mọi bước của skill, trừ những chỗ ghi dưới đây.

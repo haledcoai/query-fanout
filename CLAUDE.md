@@ -16,6 +16,13 @@ Repo này là bản chuyển của project "Query fan-out" từ tài khoản Cla
 3. **Routine "Query fan-out từ nút trên trang"** (`routine/query-fan-out-tu-trang.md`). Không có lịch, chỉ chạy khi trang gọi. Chạy trong một phiên cloud mới, không đọc được project files, nên key SerpApi phải nằm trong Setup script của môi trường (`~/.serpapi-key`).
 4. **Môi trường cloud**: network cho phép `serpapi.com` và `geo.otterly.ai`; Setup script ghi key vào `~/.serpapi-key`.
 
+## Trạng thái trên tài khoản Team (26/11/2026)
+
+- Trang Query Fan-Out Generator: https://claude.ai/artifact/JHh61RYvs7sgKX3HjutNck (riêng tư). Đã nạp 47 lượt chạy vào collection `runs` (chỉ admin đọc ghi). Giao diện theo design system HALEDCO (https://claude.ai/artifact/3qxpb2X2HDCr7zn3Y3nykb): màu `color_main` #525CFC, hover `color_primary` #FFBA00 chữ `color_body`, chữ Arial, bo góc 4/5/12px. Theme tối là suy ra, hệ thống gốc không có.
+- Routine của nút Phân tích: `trig_013tpVENd6U3CtVBasxPeuFQ`, không lịch, giữ phiên, model claude-sonnet-5-5, môi trường Query-fanout (`env_01FwiojentgC31PoNYHupb2j`), có connector Claude Code Remote. Prompt trong `routine/query-fan-out-tu-trang.md`, đã trỏ link trang mới.
+- Skill trong repo đã đổi link trang sang trang mới. Bản skill đang cài trên tài khoản vẫn trỏ trang cũ cho tới khi tải lại `skill/query-fan-out.zip`.
+- Cập nhật routine qua API: gửi `job_config` đầy đủ (prompt, model). Gửi riêng `environment_id` sẽ xóa mất prompt.
+
 ## Quyết định đã chốt (không tự đổi)
 
 - SerpApi: chạy cả desktop và mobile, gộp và bỏ trùng. `google` và `google_ai_mode` gọi theo từng thiết bị; Autocomplete chỉ gọi 1 lần. Khoảng 5 lượt cho mỗi truy vấn gốc (đôi khi 6-7), gói Free 250 lượt/tháng. Dưới 8 lượt còn lại thì bỏ bước SerpApi và ghi rõ lý do.

@@ -4,7 +4,8 @@ Chỉ "Query Fan-Out Generator" đã được sao lưu đầy đủ (mã trang v
 
 | Tên | Link | Ghi chú |
 |---|---|---|
-| Query Fan-Out Generator | https://claude.ai/artifact/RsdqCpsMdV6uUsgnXw7EVU | Đã sao lưu đủ, đang chia sẻ công khai bằng link |
+| Query Fan-Out Generator (tài khoản Team, từ 26/11/2026) | https://claude.ai/artifact/JHh61RYvs7sgKX3HjutNck | Bản đang dùng. Đã nạp đủ 47 lượt chạy, giao diện theo design system HALEDCO |
+| Query Fan-Out Generator (tài khoản cũ) | https://claude.ai/artifact/RsdqCpsMdV6uUsgnXw7EVU | Bản cũ, đã sao lưu đủ, đang chia sẻ công khai bằng link |
 | Bảng điều phối HLB | https://claude.ai/artifact/3wRDGsubs7s2Kb75vpypmG | Project HLB, routine điều phối đọc và ghi dữ liệu trang này |
 | Duyệt ảnh HLB | https://claude.ai/artifact/TpJeKMDsiBV4RgN9bFTWXp | Project HLB |
 | Lịch sử chấm bài HLB | https://claude.ai/artifact/JVfjfAmGtDAtZr49TFodBc | Dashboard |

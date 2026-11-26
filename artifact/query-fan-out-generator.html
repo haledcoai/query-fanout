@@ -1,70 +1,78 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Query Fan-Out Generator</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
-/* Layout: một cột công cụ. Form nhập + nguồn Otterly, thanh lọc (Nhóm, Ý định, Nguồn), bảng gom theo nhóm (thẻ trên điện thoại) */
+/* Layout: một cột công cụ. Form nhập + nguồn Otterly, thanh lọc (Nhóm, Ý định, Nguồn), bảng gom theo nhóm (thẻ trên điện thoại).
+   Token theo design system HALEDCO (https://claude.ai/artifact/3qxpb2X2HDCr7zn3Y3nykb). Giá trị có ghi "suy ra" không có trong hệ thống gốc. */
 :root {
-  --bg: #f5f6f8;
-  --surface: #ffffff;
-  --ink: #16202e;
-  --muted: #5d6878;
-  --line: #dde2ea;
-  --accent: #c27a00;
-  --accent-ink: #1b1300;
-  --accent-soft: #fff3dc;
+  --bg: #f8f9fa;            /* gray_100 */
+  --surface: #ffffff;       /* surface */
+  --ink: #212529;           /* color_body */
+  --muted: #5d6878;         /* suy ra: chữ phụ 5.6:1 trên trắng, vì gray_500 chỉ 3.32:1 */
+  --line: #dee2e6;          /* gray_300, đường chia */
+  --ctl-line: #868e96;      /* gray_500, viền ô nhập và nút (đề xuất của hệ thống, 3.32:1) */
+  --accent: #525cfc;        /* color_main */
+  --accent-ink: #ffffff;    /* color_text_button, 4.89:1 */
+  --accent-soft: #f5f6ff;   /* suy ra: nền nhạt của color_main */
+  --hover: #ffba00;         /* color_primary, nền nút khi hover */
+  --hover-ink: #212529;     /* color_body trên vàng, 9.02:1 */
   --ok: #1d8a52; --real: #1d8a52; --real-soft: #e3f5ec;
-  --ot: #2f6fdb; --ot-soft: #e6eefc;
+  --ot: #0066cc; --ot-soft: #f0f7ff;   /* status_info, status_info_surface */
   --gg: #b0428a; --gg-soft: #fbe8f3; --inf: #8a6d00; --inf-soft: #fbf3d6;
-  --focus: #2f6fdb;
-  --err-bg: #fdecec; --err-fg: #a12626;
-  --i-info: #2f6fdb; --i-tm: #b45f06; --i-dh: #6b4fc9; --i-gd: #1d8a52;
-  --f-ui: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
-  --f-num: "IBM Plex Mono", ui-monospace, Consolas, monospace;
-  --r: 10px;
+  --focus: #525cfc;         /* đề xuất của hệ thống: viền focus 2px color_main */
+  --err-bg: #fff5f5; --err-fg: #c62828;  /* suy ra: đậm hơn status_danger một chút để đạt 5.26:1 trên nền lỗi */
+  --i-info: #0066cc; --i-tm: #b45f06; --i-dh: #6b4fc9; --i-gd: #1d8a52;
+  --f-ui: Arial, sans-serif; /* sans */
+  --f-num: Arial, sans-serif;
+  --r: 12px;                /* radius-card */
+  --r-ctl: 4px;             /* radius-sm: ô nhập, nút trong form */
+  --r-btn: 5px;             /* radius-btn */
 }
+/* Hệ thống HALEDCO chỉ có theme sáng. Theme tối dưới đây là suy ra từ cùng màu thương hiệu. */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #10151d; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b5; --line: #2a3442;
-  --accent: #f0a828; --accent-ink: #1b1300; --accent-soft: #2e2510; --focus: #7aa7ff; --ok: #5fd39a; --real: #5fd39a; --real-soft: #13301f;
-  --ot: #8fb4ff; --ot-soft: #17243d;
+  --bg: #10151d; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b5; --line: #2a3442; --ctl-line: #5b6678;
+  --accent: #8b93ff; --accent-ink: #10151d; --accent-soft: #1f2347; --hover: #ffba00; --hover-ink: #212529;
+  --focus: #8b93ff; --ok: #5fd39a; --real: #5fd39a; --real-soft: #13301f;
+  --ot: #7ab8ff; --ot-soft: #14263d;
   --gg: #f19ad0; --gg-soft: #3a1830; --inf: #e6c75a; --inf-soft: #2f2810;
   --err-bg: #3a1a1c; --err-fg: #ffb3b3;
-  --i-info: #7aa7ff; --i-tm: #f0a828; --i-dh: #b9a3ff; --i-gd: #5fd39a;
+  --i-info: #7ab8ff; --i-tm: #f0a828; --i-dh: #b9a3ff; --i-gd: #5fd39a;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
-  --bg: #10151d; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b5; --line: #2a3442;
-  --accent: #f0a828; --accent-ink: #1b1300; --accent-soft: #2e2510; --focus: #7aa7ff; --ok: #5fd39a; --real: #5fd39a; --real-soft: #13301f;
-  --ot: #8fb4ff; --ot-soft: #17243d;
+  --bg: #10151d; --surface: #171e29; --ink: #e6ebf2; --muted: #9aa5b5; --line: #2a3442; --ctl-line: #5b6678;
+  --accent: #8b93ff; --accent-ink: #10151d; --accent-soft: #1f2347; --hover: #ffba00; --hover-ink: #212529;
+  --focus: #8b93ff; --ok: #5fd39a; --real: #5fd39a; --real-soft: #13301f;
+  --ot: #7ab8ff; --ot-soft: #14263d;
   --gg: #f19ad0; --gg-soft: #3a1830; --inf: #e6c75a; --inf-soft: #2f2810;
   --err-bg: #3a1a1c; --err-fg: #ffb3b3;
-  --i-info: #7aa7ff; --i-tm: #f0a828; --i-dh: #b9a3ff; --i-gd: #5fd39a;
+  --i-info: #7ab8ff; --i-tm: #f0a828; --i-dh: #b9a3ff; --i-gd: #5fd39a;
   color-scheme: dark; }
 
 [hidden] { display: none !important; }
-body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 15px; line-height: 1.5; padding-inline: 16px; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 15px; line-height: 1.5; padding-inline: 16px; font-variant-numeric: tabular-nums; }
 .wrap { max-width: 1000px; margin: 0 auto; padding-block: 28px 48px; display: grid; gap: 18px; }
 h1 { margin: 0; font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; display: flex; align-items: center; gap: 10px; }
-h1 .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft), 0 0 18px var(--accent); flex: none; }
+h1 .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); flex: none; }
 .lead { margin: 4px 0 0; color: var(--muted); max-width: 66ch; }
 
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 14px; }
 .lbl { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 6px; }
-textarea, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; box-sizing: border-box; }
+textarea, select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--ctl-line); border-radius: var(--r-ctl); padding: 10px 12px; width: 100%; box-sizing: border-box; }
 textarea { min-height: 60px; resize: vertical; }
 textarea:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, .seg input:focus-visible + span, .filebtn input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
 .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
 .row > div { min-width: 0; }
 .row select { width: auto; min-width: 140px; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg { display: inline-flex; border: 1px solid var(--ctl-line); border-radius: var(--r-ctl); overflow: hidden; }
 .seg label { position: relative; }
 .seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-.seg span { display: block; padding: 9px 15px; font-family: var(--f-num); font-size: 14px; border-left: 1px solid var(--line); cursor: pointer; }
+.seg span { display: block; padding: 9px 15px; font-family: var(--f-num); font-size: 14px; border-left: 1px solid var(--ctl-line); cursor: pointer; }
 .seg label:first-child span { border-left: 0; }
 .seg input:checked + span { background: var(--accent); color: var(--accent-ink); }
-button, .btn { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 9px 14px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+button, .btn { font: inherit; cursor: pointer; border-radius: var(--r-btn); border: 1px solid var(--ctl-line); transition: background-color .3s, color .3s, border-color .3s; background: var(--surface); color: var(--ink); padding: 9px 14px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
 button:disabled { opacity: .55; cursor: not-allowed; }
-.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; padding: 10px 22px; }
+.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; padding: 10px 22px; text-transform: uppercase; }
+.primary:hover:not(:disabled) { background: var(--hover); border-color: var(--hover); color: var(--hover-ink); }
+button:not(.primary):hover:not(:disabled), .filebtn:hover span { border-color: var(--accent); color: var(--accent); }
 .actions { margin-left: auto; display: flex; gap: 8px; }
 .note { font-size: 13px; color: var(--muted); margin: 0; }
 .badge { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; white-space: nowrap; background: var(--accent-soft); color: var(--accent); }
@@ -75,7 +83,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .b-pred { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
 
 /* Khối nguồn Otterly */
-.src { border: 1px dashed var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 12px; }
+.src { border: 1px dashed var(--ctl-line); border-radius: var(--r-ctl); padding: 14px; display: grid; gap: 12px; }
 .src-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; }
 .src-head h2 { margin: 0; font-size: 14px; font-weight: 700; }
 .steps { margin: 0; padding-left: 20px; font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
@@ -83,7 +91,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .src-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .filebtn { position: relative; display: inline-flex; }
 .filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
-.filebtn span { border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 9px 14px; font-weight: 500; }
+.filebtn span { border-radius: var(--r-btn); border: 1px solid var(--ctl-line); transition: border-color .3s, color .3s; background: var(--surface); padding: 9px 14px; font-weight: 500; }
 #otpaste { min-height: 44px; font-size: 13px; }
 .src-state { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
 .src-state .cnt { font-family: var(--f-num); }
@@ -117,9 +125,9 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 
 .groups { display: grid; gap: 14px; }
 .group { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
-.group h3 { margin: 0; padding: 12px 16px; font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-.group h3 .n { font-family: var(--f-num); font-size: 12px; color: var(--muted); font-weight: 500; }
-.group h3 .def { font-size: 12px; color: var(--muted); font-weight: 400; }
+.group h3 { margin: 0; padding: 12px 16px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; background: var(--accent); color: var(--accent-ink); border-bottom: 1px solid var(--accent); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.group h3 .n { font-family: var(--f-num); font-size: 12px; color: inherit; font-weight: 500; }
+.group h3 .def { font-size: 12px; color: inherit; font-weight: 400; text-transform: none; letter-spacing: 0; }
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 8px 16px; }
 th:nth-child(2) { width: 120px; } th:nth-child(3) { width: 150px; } th:nth-child(4) { width: 170px; }
@@ -141,14 +149,14 @@ td.s .sw { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .insight ul { padding-left: 20px; }
 .insight a { color: var(--ot); overflow-wrap: anywhere; }
 .otadd { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.otadd input { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; flex: 1 1 260px; min-width: 0; }
+.otadd input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--ctl-line); border-radius: var(--r-ctl); padding: 9px 12px; flex: 1 1 260px; min-width: 0; }
 .empty { color: var(--muted); padding: 20px; text-align: center; background: var(--surface); border: 1px dashed var(--line); border-radius: var(--r); }
 
 .hist { display: grid; gap: 12px; }
 .hist-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .hist-head h2 { margin: 0; font-size: 15px; font-weight: 700; }
 .hist-head .tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
-.hlist { display: grid; max-height: 340px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+.hlist { display: grid; max-height: 340px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--r-ctl); }
 .hrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 12px; border-top: 1px solid var(--line); }
 .hrow:first-child { border-top: 0; }
 .hrow.cur { background: var(--accent-soft); }
@@ -738,7 +746,7 @@ $("f").addEventListener("submit", async e => {
 });
 $("stop").onclick = () => ctl && ctl.abort();
 // ---- Chạy có Google: kích hoạt routine trong project, routine chạy /query-fan-out rồi ghi kết quả vào db runs/<job> ----
-const TRIGGER_ID = "trig_01GwvKbnDm7jnovRY7rie5dq";
+const TRIGGER_ID = "trig_013tpVENd6U3CtVBasxPeuFQ";
 const RC = "Claude Code Remote";
 let mcpNs, pendingJob = null, pendingTimer = null, fallbackWhy = "";
 const MCP_ERR = {

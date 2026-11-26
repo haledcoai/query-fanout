@@ -7,7 +7,7 @@ description: "Phân tích query fan-out cho một truy vấn gốc: lấy truy v
 
 Người dùng chỉ nhập truy vấn gốc. Không hỏi thêm, không chia theo nền tảng. Kết quả cuối là MỘT danh sách gộp, không trùng lặp, không kèm giải thích từng dòng.
 
-Kết quả của skill này dùng chung định dạng với trang Query Fan-Out Generator (https://claude.ai/artifact/RsdqCpsMdV6uUsgnXw7EVU): cùng 7 nhóm, cùng giá trị Ý định, Loại nội dung, cùng cách ghi Nguồn và cùng bộ lọc truy vấn Otterly.
+Kết quả của skill này dùng chung định dạng với trang Query Fan-Out Generator (https://claude.ai/artifact/JHh61RYvs7sgKX3HjutNck): cùng 7 nhóm, cùng giá trị Ý định, Loại nội dung, cùng cách ghi Nguồn và cùng bộ lọc truy vấn Otterly.
 
 ## Đầu vào
 - Truy vấn gốc: lấy từ tin nhắn. Thiếu thì hỏi.
@@ -150,7 +150,7 @@ Ngữ cảnh: thị trường Việt Nam, người tìm là nhà thầu, chủ �
    - nguon = "Thật" (Bước 1), tên nguồn SerpApi (Bước 1b), tên nguồn Otterly (Bước 0b), hoặc "Dự đoán" (Bước 2). Truy vấn trùng giữa nhiều nguồn: ghi đủ các nguồn, cách nhau bởi dấu phẩy, ví dụ "Thật, Google Autocomplete".
    - tan_suat chỉ điền cho dòng có Thật. kieu_otterly là TYPE gốc của Otterly, chỉ điền cho dòng Otterly.
    - Sắp xếp: dòng Thật trước (tần suất giảm dần), rồi Google PAA / Related / Autocomplete, rồi Suy ngược AI Mode / AI Overview, rồi Otterly (có ở nhiều chế độ trước), rồi dự đoán theo thứ tự 7 nhóm. Trong mỗi nhóm nguồn, dòng có nhiều nguồn hơn xếp trước.
-2. Lưu vào Lịch sử của trang Query Fan-Out Generator (https://claude.ai/artifact/RsdqCpsMdV6uUsgnXw7EVU) bằng ArtifactData, collection "runs", một document mới: {root, createdAt (ms), count, lang: "vi", source: "skill", items: [{query, nhom, y_dinh, loai_noi_dung, nguon, tan_suat, kieu_otterly}]}. Bỏ trường rỗng. Với biến thể otterly: đọc document cũ cùng root, cập nhật nó (kèm if_version) thay vì tạo mới.
+2. Lưu vào Lịch sử của trang Query Fan-Out Generator (https://claude.ai/artifact/JHh61RYvs7sgKX3HjutNck) bằng ArtifactData, collection "runs", một document mới: {root, createdAt (ms), count, lang: "vi", source: "skill", items: [{query, nhom, y_dinh, loai_noi_dung, nguon, tan_suat, kieu_otterly}]}. Bỏ trường rỗng. Với biến thể otterly: đọc document cũ cùng root, cập nhật nó (kèm if_version) thay vì tạo mới.
 3. Trong chat: một bảng markdown gom theo nhóm, cột Truy vấn con | Ý định | Loại nội dung | Nguồn. Không thêm cột giải thích. Ghi một dòng số lượng theo nguồn, ví dụ: 6 Thật, 20 Google, 8 Suy ngược, 38 Otterly, 30 Dự đoán. Nếu có truy vấn Otterly bị lọc: thêm một dòng "Đã lược bỏ N truy vấn Otterly có năm cũ hoặc dấu ngoặc", liệt kê ngắn các truy vấn đó kèm lý do.
 4. Tối đa 4 câu nhận xét cuối: AI thật sự tìm gì, và trang nào trên haledco.com nên đáp ứng. Dựa trên truy vấn Thật và dữ liệu Google (PAA, Related, Autocomplete); truy vấn có ở nhiều nguồn là tín hiệu mạnh hơn. Một câu về trích dẫn: AI Mode và AI Overviews trích domain nào, haledco.com có được trích không và bằng trang nào.
 
